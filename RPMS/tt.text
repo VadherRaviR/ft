@@ -1,253 +1,3 @@
-@PostMapping("/{gameId}/gameInterest")
-    public ResponseEntity<String> gameInterest(@PathVariable Long gameId)
-    {
-        return gameService.interestedGame(gameId);
-    }
-
-
-    @GetMapping("/{gameId}/gameInterest")
-    public List<GameInterestUserDto> getGameInterested(@PathVariable Long gameId)
-    {
-        return gameService.getGameInterested(gameId);
-    }
-
-
-    @GetMapping("/gameInterest/my")
-    public List<GameInterestUserDto> getMyGameInterested()
-    {
-        return gameService.getMyGameInterested();
-    }
-package com.roima.hrms.gamescheduling.dto;
-
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-
-@Getter
-@Setter
-@AllArgsConstructor
-@NoArgsConstructor
-public class GameInterestUserDto {
-
-    private Long gameId;
-    private String GameName;
-    private Long userId;
-    private String name;
-    private Long interestId;
-}
-package com.roima.hrms.gamescheduling.service;
-
-import com.roima.hrms.auth.model.UserPrincipal;
-import com.roima.hrms.common.exception.GeneralException;
-import com.roima.hrms.gamescheduling.dto.GameConfigRequestDto;
-import com.roima.hrms.gamescheduling.dto.GameConfigResponseDto;
-import com.roima.hrms.gamescheduling.dto.GameInterestUserDto;
-import com.roima.hrms.gamescheduling.dto.GameResponseDto;
-import com.roima.hrms.gamescheduling.entity.Game;
-import com.roima.hrms.gamescheduling.entity.GameConfig;
-import com.roima.hrms.gamescheduling.entity.GameInterest;
-import com.roima.hrms.gamescheduling.entity.PlayerStats;
-import com.roima.hrms.gamescheduling.exception.ConfigExistException;
-import com.roima.hrms.gamescheduling.exception.NotAllowedException;
-import com.roima.hrms.gamescheduling.exception.NotFoundException;
-import com.roima.hrms.gamescheduling.mapper.GameConfigMapper;
-import com.roima.hrms.gamescheduling.mapper.GameMapper;
-import com.roima.hrms.gamescheduling.mapper.InterestUserMapper;
-import com.roima.hrms.gamescheduling.repository.GameConfigRepository;
-import com.roima.hrms.gamescheduling.repository.GameInterestRepository;
-import com.roima.hrms.gamescheduling.repository.GameRepository;
-import com.roima.hrms.gamescheduling.repository.PlayerStatsRepository;
-import com.roima.hrms.user.entity.User;
-import com.roima.hrms.user.repository.UserRepository;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-
-@Service
-@Transactional
-public class GameServiceImpl implements GameService {
-
-
-    private final GameRepository gameRepository;
-    private final GameConfigRepository gameConfigRepository;
-    private final UserRepository userRepository;
-    private final GameInterestRepository gameInterestRepository;
-    private final PlayerStatsRepository  playerStatsRepository;
-
-
-    public GameServiceImpl(GameRepository gameRepository,
-                           GameConfigRepository gameConfigRepository,
-                           UserRepository userRepository,
-                           GameInterestRepository gameInterestRepository,
-                           PlayerStatsRepository playerStatsRepository) {
-        this.gameRepository = gameRepository;
-        this.gameConfigRepository = gameConfigRepository;
-        this.userRepository = userRepository;
-        this.gameInterestRepository = gameInterestRepository;
-        this.playerStatsRepository = playerStatsRepository;
-    }
-
-    //create game
-    @Override
-    public ResponseEntity<String> createGame(String gameName)
-    {
-        Game game = new Game();
-        game.setGameName(gameName);
-        gameRepository.save(game);
-
-        return ResponseEntity.ok("Game created successfully");
-    }
-
-    //get All active and inActive games
-    @Override
-    public List<GameResponseDto> getAllGames()
-    {
-        return gameRepository.findAll()
-                .stream()
-                .map(GameMapper::toDto)
-                .toList();
-    }
-
-    //create first configuration
-    @Override
-    public ResponseEntity<String> configGame(Long gameId, GameConfigRequestDto dto)
-    {
-        Optional<GameConfig> gameConfig = gameConfigRepository.findByGameId(gameId);
-        if(gameConfig.isPresent())
-        {
-            throw new ConfigExistException("This Game have already configuration");
-        }
-        Game game = gameRepository.findById(gameId).orElseThrow(()->  new NotFoundException("Game not found"));
-
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-        User user = userRepository.findById(userPrincipal.getUserId()).orElseThrow(()->new UsernameNotFoundException("User not found"));
-
-        GameConfig config = new GameConfig();
-        config.setGame(game);
-        config.setCreatedBy(user.getName());
-        config.setCreatedAt(LocalDateTime.now());
-        config.setStartTime(dto.getStartTime());
-        config.setEndTime(dto.getEndTime());
-        config.setMaxPlayers(dto.getCapacity());
-        config.setSlotDuration(dto.getSlotDuration());
-
-        gameConfigRepository.save(config);
-        return ResponseEntity.ok().body("Game created successfully");
-    }
-
-
-    //get game specific config
-    @Override
-    public GameConfigResponseDto getConfigGame(Long gameId)
-    {
-        GameConfig config = gameConfigRepository.findByGameId(gameId).orElseThrow(()->new NotFoundException("Game Config not found"));
-        return GameConfigMapper.toDto(config);
-    }
-
-    @Override
-    public ResponseEntity<String> updateConfigGame(Long gameId,GameConfigRequestDto dto){
-
-        GameConfig config = gameConfigRepository.findByGameId(gameId).orElseThrow(()->new NotFoundException("Game Config not found"));
-
-        if(dto.getStartTime() != null){
-            config.setStartTime(dto.getStartTime());
-        }
-        if(dto.getEndTime() != null){
-            config.setEndTime(dto.getEndTime());
-        }
-        if(dto.getSlotDuration() != null){
-            config.setSlotDuration(dto.getSlotDuration());
-        }
-        if(dto.getCapacity()!= null){
-            config.setMaxPlayers(dto.getCapacity());
-        }
-
-        gameConfigRepository.save(config);
-
-        return ResponseEntity.ok().body("Game Configuration  updated successfully");
-    }
-
-
-    //interested game
-    @Override
-    public ResponseEntity<String> interestedGame(Long gameId){
-
-        Game game = gameRepository.findById(gameId).orElseThrow(()->new NotFoundException("Game not found"));
-
-        UserPrincipal userPrincipal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        User user =  userRepository.findById(userPrincipal.getUserId()).orElseThrow(()->new UsernameNotFoundException("User not found"));
-
-        if(gameInterestRepository.existsByUserIdAndGameId(user.getId(),gameId))
-        {
-            throw new NotAllowedException("You have already interested for this game");
-        }
-
-        GameInterest gameInterest = new GameInterest();
-        gameInterest.setGame(game);
-        gameInterest.setUser(user);
-        gameInterestRepository.save(gameInterest);
-
-        PlayerStats stats = new PlayerStats();
-        stats.setGame(game);
-        stats.setUser(user);
-        playerStatsRepository.save(stats);
-
-        return ResponseEntity.ok("Your Interest for Game is save successfully");
-    }
-
-    //get all interested user by gameID
-    @Override
-    public List<GameInterestUserDto> getGameInterested(Long gameId){
-
-        gameRepository.findById(gameId).orElseThrow(()->new NotFoundException("Game not found"));
-
-        return gameInterestRepository.findUserByGameId(gameId)
-                .stream()
-                .map(InterestUserMapper::toDto)
-                .toList();
-
-    }
-
-    //get user specific game interest
-    @Override
-    public List<GameInterestUserDto> getMyGameInterested(){
-
-        UserPrincipal userPrincipal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        User user =  userRepository.findById(userPrincipal.getUserId()).orElseThrow(()->new UsernameNotFoundException("User not found"));
-
-        return gameInterestRepository.findGameByUserId(user.getId())
-                .stream()
-                .map(InterestUserMapper::toDto)
-                .toList();
-
-    }
-
-
-}
-package com.roima.hrms.gamescheduling.repository;
-
-import com.roima.hrms.gamescheduling.entity.GameInterest;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-
-import java.util.List;
-
-@Repository
-public interface GameInterestRepository extends JpaRepository<GameInterest,Long> {
-
-    List<GameInterest> findUserByGameId(Long gameId);
-    List<GameInterest> findGameByUserId(Long userId);
-    boolean existsByUserIdAndGameId(Long userId, Long gameId);
-}
 package com.roima.hrms.gamescheduling.entity;
 
 import com.roima.hrms.user.entity.User;
@@ -258,12 +8,18 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name="game_interest",uniqueConstraints = {@UniqueConstraint(name="unique_user_game", columnNames = {"user_id","fk_game_id"})})
+@Table(
+    name="game_interest",
+    uniqueConstraints = {
+        @UniqueConstraint(name="unique_user_game", columnNames = {"user_id","fk_game_id"})
+    }
+)
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
 public class GameInterest {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name="pk_interest")
@@ -277,212 +33,8 @@ public class GameInterest {
     @JoinColumn(name="fk_game_id",nullable = false)
     private Game game;
 
-
-}
-
-import { useEffect, useState } from "react";
-import { fetchGame, createGame, addInterest, fetchDashboard } from "../gameAPI";
-import toast from "react-hot-toast";
-import DashboardLayout from "../../layout/DashboardLayout";
-import { useAuth } from "../../context/AuthContext";
-import { CircularProgress, Button } from "@mui/material";
-import { useNavigate } from "react-router-dom";
-
-export default function GameList() {
-
-    const [games, setGames] = useState([]);
-    const [dashboard, setDashboard] = useState([]);
-    const [load, setLoad] = useState(false);
-    const { user, loading } = useAuth();
-    const [showForm, setShowForm] = useState(false);
-    const [gameName, setGameName] = useState("");
-
-    const navigate = useNavigate();
-
-    useEffect(() => {
-        loadGame();
-        loadDashboard();
-        const id = setInterval(loadDashboard, 30000);
-        return () => clearInterval(id);
-
-    }, []);
-
-    const loadGame = async () => {
-        setLoad(true);
-        try {
-            const res = await fetchGame();
-            setGames(res);
-        } catch {
-            toast.error("Failed to load games");
-        }
-        setLoad(false);
-    };
-
-    const loadDashboard = async () => {
-        try {
-            const data = await fetchDashboard();
-            console.log(data);
-            setDashboard(data);
-        } catch { }
-    };
-
-    const handleCreate = async () => {
-        if (!gameName.trim())
-            return toast.error("Enter game name");
-
-        try {
-            await createGame(gameName);
-            setGameName("");
-            setShowForm(false);
-            toast.success("Game created");
-            loadGame();
-        } catch {
-            toast.error("Failed to create game");
-        }
-    };
-
-    const handleInterest = async (gameId) => {
-            try{
-            await addInterest(gameId);
-            toast.success("Interest added");
-            }catch(e){
-                console.log(e)
-            };
-    
-    };
-
-    const slotsByGame = dashboard.reduce((acc, slot) => {
-        if (!acc[slot.game]) acc[slot.game] = [];
-        acc[slot.game].push(slot);
-        return acc;
-    }, {});
-
-
-    if (loading || load)
-        return (
-            <DashboardLayout>
-                <div className="flex justify-center mt-20">
-                    <CircularProgress />
-                </div>
-            </DashboardLayout>
-        );
-
-    return (
-        <DashboardLayout>
-            <div className="p-6">
-                <div className="flex items-center justify-between w-full mb-8">
-                    <h1 className="text-2xl font-semibold">
-                        Games
-                    </h1>
-                    {user?.role === "ROLE_Hr" && (
-                        <div>
-                            <Button
-                                variant="contained"
-                                onClick={() => setShowForm(!showForm)}
-                            >
-                                + Create Game
-                            </Button>
-                            {showForm && (
-                                <div className="border p-4 rounded mt-3 w-64 bg-white shadow">
-                                    <input
-                                        className="border p-2 w-full mb-3 rounded"
-                                        placeholder="Game name"
-                                        value={gameName}
-                                        onChange={(e) => setGameName(e.target.value)} />
-                                    <Button
-                                        fullWidth
-                                        variant="contained"
-                                        onClick={handleCreate}>
-                                        Save
-                                    </Button>
-                                </div>)}
-                        </div>
-                    )}
-                </div>
-
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {games.map(g => (
-                        <div
-                            key={g.gameId}
-                            className="border rounded-lg p-4 shadow-sm hover:shadow transition">
-                            <h2 className="text-xl font-bold mb-4 text-center">
-                                {g.gameName}
-                            </h2>
-                            <div className="flex flex-col gap-3">
-                                <button
-                                    className="bg-blue-400 text-white py-2 rounded hover:bg-blue-400"
-                                    onClick={() => handleInterest(g.gameId)}
-                                >
-                                    Add Interest
-                                </button>
-                                <button
-                                    className="bg-blue-500 text-white py-2 rounded hover:bg-blue-400"
-                                    onClick={() => navigate(`/games/${g.gameId}/slot`)}
-                                >
-                                    Book Game
-                                </button>
-                                <button
-                                    className="bg-blue-500 text-white py-2 rounded hover:bg-blue-400"
-                                    onClick={() => navigate(`/game/${g.gameId}/bookingHistory/${user.id}`)} >
-                                    History
-                                </button>
-                                {user?.role === "ROLE_Hr" && (
-                                    <button
-                                        className="bg-blue-500 text-white py-2 rounded hover:bg-blue-400"
-                                        onClick={() => navigate(`/games/${g.gameId}/gameconfig`)} >
-                                        Config Game
-                                    </button>
-                                )}
-                            </div>
-                            {slotsByGame[g.gameName]?.length > 0 && (
-                                <div className="mt-5 border-t pt-3">
-                                    <h3 className="font-semibold mb-2 text-gray-700">
-                                        Upcoming Slots
-                                    </h3>
-                                    {slotsByGame[g.gameName].map((s, i) => (
-                                        <div
-                                            key={i}
-                                            className="bg-gray-50 border rounded p-2 mb-2 text-sm"  >
-                                            <div className="font-medium">
-                                                {s.start} - {s.end}
-                                            </div>
-                                            <div className="text-gray-600">
-                                                {s.players.join(", ")}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>)}
-                        </div>))}
-                </div>
-            </div>
-        </DashboardLayout>
-    );  
-}
-package com.roima.hrms.gamescheduling.dto;
-
-import com.roima.hrms.gamescheduling.enums.SlotStatus;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.time.LocalDate;
-import java.time.LocalTime;
-
-@Getter
-@Setter
-@AllArgsConstructor
-@NoArgsConstructor
-public class SlotResponseDto {
-
-    private Long slotId;
-    private Long gameId;
-    private LocalDate date;
-    private LocalTime startTime;
-    private LocalTime endTime;
-    private SlotStatus status;
-    private Integer bookedCount;
+    @Column(nullable = false)
+    private Boolean active = true;   // 👈 SOFT DELETE FLAG
 }
 
 package com.roima.hrms.gamescheduling.repository;
@@ -492,16 +44,184 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface GameInterestRepository extends JpaRepository<GameInterest,Long> {
 
-    List<GameInterest> findUserByGameId(Long gameId);
-    List<GameInterest> findGameByUserId(Long userId);
-    boolean existsByUserIdAndGameId(Long userId, Long gameId);
+    List<GameInterest> findByGameIdAndActiveTrue(Long gameId);
+
+    List<GameInterest> findByUserIdAndActiveTrue(Long userId);
+
+    Optional<GameInterest> findByUserIdAndGameId(Long userId, Long gameId);
+
+    boolean existsByUserIdAndGameIdAndActiveTrue(Long userId, Long gameId);
+}
+-------------------------
+@Override
+public ResponseEntity<String> interestedGame(Long gameId){
+
+    Game game = gameRepository.findById(gameId)
+            .orElseThrow(() -> new NotFoundException("Game not found"));
+
+    UserPrincipal userPrincipal =
+            (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+    User user = userRepository.findById(userPrincipal.getUserId())
+            .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+    Optional<GameInterest> existing =
+            gameInterestRepository.findByUserIdAndGameId(user.getId(), gameId);
+
+    if(existing.isPresent()){
+
+        GameInterest interest = existing.get();
+
+        if(Boolean.TRUE.equals(interest.getActive())){
+            throw new NotAllowedException("You have already interested for this game");
+        }
+
+        // Reactivate
+        interest.setActive(true);
+        gameInterestRepository.save(interest);
+
+        return ResponseEntity.ok("Interest added again");
+    }
+
+    GameInterest gameInterest = new GameInterest();
+    gameInterest.setGame(game);
+    gameInterest.setUser(user);
+    gameInterest.setActive(true);
+
+    gameInterestRepository.save(gameInterest);
+
+    PlayerStats stats = new PlayerStats();
+    stats.setGame(game);
+    stats.setUser(user);
+    playerStatsRepository.save(stats);
+
+    return ResponseEntity.ok("Your Interest for Game is saved successfully");
+}
+-----------------------
+@Override
+public ResponseEntity<String> removeInterest(Long gameId){
+
+    UserPrincipal userPrincipal =
+            (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+    User user = userRepository.findById(userPrincipal.getUserId())
+            .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+    GameInterest interest = gameInterestRepository
+            .findByUserIdAndGameId(user.getId(), gameId)
+            .orElseThrow(() -> new NotFoundException("Interest not found"));
+
+    if(!interest.getActive()){
+        throw new NotAllowedException("Interest already removed");
+    }
+
+    interest.setActive(false);
+
+    gameInterestRepository.save(interest);
+
+    return ResponseEntity.ok("Interest removed successfully");
+}
+----------------------
+@Override
+public List<GameInterestUserDto> getGameInterested(Long gameId){
+
+    gameRepository.findById(gameId)
+            .orElseThrow(() -> new NotFoundException("Game not found"));
+
+    return gameInterestRepository.findByGameIdAndActiveTrue(gameId)
+            .stream()
+            .map(InterestUserMapper::toDto)
+            .toList();
+}
+-----------------------------
+@Override
+public List<GameInterestUserDto> getMyGameInterested(){
+
+    UserPrincipal userPrincipal =
+            (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+    User user = userRepository.findById(userPrincipal.getUserId())
+            .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+    return gameInterestRepository.findByUserIdAndActiveTrue(user.getId())
+            .stream()
+            .map(InterestUserMapper::toDto)
+            .toList();
+}
+-----------------------------
+@PostMapping("/{gameId}/gameInterest")
+public ResponseEntity<String> gameInterest(@PathVariable Long gameId)
+{
+    return gameService.interestedGame(gameId);
 }
 
+@DeleteMapping("/{gameId}/gameInterest")
+public ResponseEntity<String> removeInterest(@PathVariable Long gameId)
+{
+    return gameService.removeInterest(gameId);
+}
+--------------------------------
+export const removeInterest = (gameId) =>
+    api.delete(`/games/${gameId}/gameInterest`);
+
+export const fetchMyInterest = () =>
+    api.get(`/games/gameInterest/my`).then(res => res.data);
+    -----------------------
+    const [myInterest, setMyInterest] = useState([]);
+    loadMyInterest(); //useeefect
+    const loadMyInterest = async () => {
+    try{
+        const data = await fetchMyInterest();
+        const ids = data.map(i => i.gameId);
+        setMyInterest(ids);
+    }catch{}
+};
+-------------------
+const handleRemoveInterest = async (gameId) => {
+    try{
+        await removeInterest(gameId);
+        toast.success("Interest removed");
+        loadMyInterest();
+    }catch{
+        toast.error("Failed to remove interest");
+    }
+};
+--------------------
+const handleInterest = async (gameId) => {
+    try{
+        await addInterest(gameId);
+        toast.success("Interest added");
+        loadMyInterest();
+    }catch(e){
+        console.log(e);
+    }
+};
+-------------------
+{myInterest.includes(g.gameId) ? (
+    <button
+        className="bg-red-500 text-white py-2 rounded hover:bg-red-400"
+        onClick={() => handleRemoveInterest(g.gameId)}
+    >
+        Remove Interest
+    </button>
+) : (
+    <button
+        className="bg-blue-400 text-white py-2 rounded hover:bg-blue-400"
+        onClick={() => handleInterest(g.gameId)}
+    >
+        Add Interest
+    </button>
+)}
+--------------------
 
 
 
+
+    
+    
 
