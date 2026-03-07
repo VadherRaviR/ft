@@ -1,194 +1,85 @@
-import api from "../api";
+package com.roima.hrms.config;
 
-export const sendOtp = (userName) =>
-  api.post("/auth/fogot-password", null, { params: { userName } });
+import com.roima.hrms.auth.jwt.JwtAuthFilter;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-export const verifyOtp = (userName, otp) =>
-  api.post("/auth/verify-otp", null, { params: { userName, otp } });
+import java.util.Arrays;
 
-export const resetPassword = (userName, newPassword) =>
-  api.post("/auth/reset-password", null, {
-    params: { userName, newPassword },
-  });
-  --------------------
-  import { useState } from "react";
-import { sendOtp } from "../api/authAPI";
-import { useNavigate } from "react-router-dom";
-import toast from "react-hot-toast";
+@EnableMethodSecurity
+@Configuration
+public class SecurityConfig {
 
-export default function ForgotPassword() {
-
-  const [email,setEmail] = useState("");
-  const navigate = useNavigate();
-
-  const handleSubmit = async(e)=>{
-    e.preventDefault();
-
-    try{
-      await sendOtp(email);
-      toast.success("OTP sent to email");
-      navigate("/verify-otp",{state:{email}});
-    }catch{
-      toast.error("Failed to send OTP");
+    private final AuthenticationConfiguration authenticationConfiguration;
+    private final JwtAuthFilter jwtAuthFilter;
+    public SecurityConfig(AuthenticationConfiguration authenticationConfiguration,
+                          JwtAuthFilter jwtAuthFilter)
+    {
+        this.authenticationConfiguration = authenticationConfiguration;
+        this.jwtAuthFilter = jwtAuthFilter;
     }
-  };
 
-  return(
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+    @Bean
+    public AuthenticationManager authenticationManager() throws Exception{
+        return authenticationConfiguration.getAuthenticationManager();
+    }
 
-      <form onSubmit={handleSubmit}
-        className="bg-white p-8 rounded-lg shadow-md w-96">
+    //security filter
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http,
+                                           JwtAuthFilter jwtAuthFilter) throws Exception {
 
-        <h2 className="text-xl font-bold mb-6 text-center">
-          Forgot Password
-        </h2>
+        http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(sm ->
+                        sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/auth/login").permitAll()
+                        .requestMatchers("/api/**").authenticated()
+                        .requestMatchers("/auth/getall").hasRole("Employee")
+                        .requestMatchers("/api/travels/**").hasAnyRole("Employee", "Hr","Manager")
+                        .requestMatchers("/api/expenses/**").hasAnyRole("Employee", "Hr")
+                        .requestMatchers("/api/admin/**").hasRole("Hr")
+                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS,"/**").permitAll()
+                        .anyRequest().permitAll()
+                )
+                .addFilterBefore(jwtAuthFilter,
+                        UsernamePasswordAuthenticationFilter.class);
 
-        <input
-          type="email"
-          placeholder="Enter your email"
-          className="w-full p-2 border rounded mb-4"
-          value={email}
-          onChange={(e)=>setEmail(e.target.value)}
-        />
+        return http.build();
+    }
 
-        <button
-          type="submit"
-          className="w-full bg-blue-600 text-white p-2 rounded">
-          Send OTP
-        </button>
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5554"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
 
-      </form>
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
 
-    </div>
-  );
+    //passwords encoding
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 }
--------------------------------
-import { useState } from "react";
-import { verifyOtp } from "../api/authAPI";
-import { useLocation,useNavigate } from "react-router-dom";
-import toast from "react-hot-toast";
-
-export default function VerifyOtp(){
-
-  const [otp,setOtp] = useState("");
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const email = location.state?.email;
-
-  const handleSubmit = async(e)=>{
-    e.preventDefault();
-
-    try{
-      await verifyOtp(email,otp);
-      toast.success("OTP verified");
-      navigate("/reset-password",{state:{email}});
-    }
-    catch{
-      toast.error("Invalid OTP");
-    }
-  };
-
-  return(
-
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-
-      <form onSubmit={handleSubmit}
-        className="bg-white p-8 rounded-lg shadow-md w-96">
-
-        <h2 className="text-xl font-bold mb-6 text-center">
-          Verify OTP
-        </h2>
-
-        <input
-          type="text"
-          placeholder="Enter OTP"
-          className="w-full p-2 border rounded mb-4"
-          value={otp}
-          onChange={(e)=>setOtp(e.target.value)}
-        />
-
-        <button
-          type="submit"
-          className="w-full bg-blue-600 text-white p-2 rounded">
-          Verify OTP
-        </button>
-
-      </form>
-
-    </div>
-  );
-}
----------------------
-import { useState } from "react";
-import { resetPassword } from "../api/authAPI";
-import { useLocation,useNavigate } from "react-router-dom";
-import toast from "react-hot-toast";
-
-export default function ResetPassword(){
-
-  const [password,setPassword] = useState("");
-
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const email = location.state?.email;
-
-  const handleSubmit = async(e)=>{
-    e.preventDefault();
-
-    try{
-      await resetPassword(email,password);
-      toast.success("Password reset successful");
-      navigate("/");
-    }
-    catch{
-      toast.error("Failed to reset password");
-    }
-  };
-
-  return(
-
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-
-      <form onSubmit={handleSubmit}
-        className="bg-white p-8 rounded-lg shadow-md w-96">
-
-        <h2 className="text-xl font-bold mb-6 text-center">
-          Reset Password
-        </h2>
-
-        <input
-          type="password"
-          placeholder="New Password"
-          className="w-full p-2 border rounded mb-4"
-          value={password}
-          onChange={(e)=>setPassword(e.target.value)}
-        />
-
-        <button
-          type="submit"
-          className="w-full bg-blue-600 text-white p-2 rounded">
-          Reset Password
-        </button>
-
-      </form>
-
-    </div>
-  );
-}
---------------------
-<div className="text-right mb-4">
-  <span
-    onClick={()=>navigate("/forgot-password")}
-    className="text-blue-600 cursor-pointer text-sm">
-    Forgot Password?
-  </span>
-</div>
--------------
-<Route path="/forgot-password" element={<ForgotPassword/>}/>
-<Route path="/verify-otp" element={<VerifyOtp/>}/>
-<Route path="/reset-password" element={<ResetPassword/>}/>
-
-
-  
