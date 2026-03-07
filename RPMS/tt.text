@@ -1,209 +1,194 @@
-package com.roima.hrms.auth.service;
+import api from "../api";
 
-import com.roima.hrms.auth.entity.PasswordResetOtp;
-import com.roima.hrms.auth.repository.PasswordResetRepository;
-import com.roima.hrms.gamescheduling.exception.NotFoundException;
-import com.roima.hrms.mail.EmailService;
-import com.roima.hrms.user.entity.User;
-import com.roima.hrms.user.repository.UserRepository;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+export const sendOtp = (userName) =>
+  api.post("/auth/fogot-password", null, { params: { userName } });
 
-import java.time.LocalDateTime;
-import java.util.Random;
+export const verifyOtp = (userName, otp) =>
+  api.post("/auth/verify-otp", null, { params: { userName, otp } });
 
-@Service
-public class PasswordResetServiceImpl implements PasswordResetService{
-
-    private static final int MAX_ATTEMPTS = 3;
-
-    private final PasswordResetRepository passwordResetRepository;
-    private final UserRepository userRepository;
-    private final EmailService emailService;
-    private  final PasswordEncoder passwordEncoder;
-
-    public PasswordResetServiceImpl(PasswordResetRepository passwordResetRepository,
-                                    UserRepository userRepository,
-                                    PasswordEncoder passwordEncoder,
-                                    EmailService emailService) {
-        this.passwordResetRepository = passwordResetRepository;
-        this.userRepository = userRepository;
-        this.emailService = emailService;
-        this.passwordEncoder = passwordEncoder;
-    }
-
-    public String generateOtp(){
-
-        Random random = new Random();
-        int otp = 100000 + random.nextInt((900000));
-        return String.valueOf(otp);
-    }
-
-    @Override
-    public void sendOtp(String userName)
-    {
-        User user = userRepository.findByEmail(userName).orElseThrow(() -> new UsernameNotFoundException("User not found"));
-
-        String otp = generateOtp();
-        PasswordResetOtp resetOpt = new PasswordResetOtp();
-        resetOpt.setUserName(user.getEmail());
-        resetOpt.setOtp(otp);
-        resetOpt.setExpiryTime(LocalDateTime.now().plusMinutes(10));
-        resetOpt.setAttempt(0);
-        resetOpt.setVerified(false);
-
-        emailService.sendEmail("ravivadher141@gmail.com","Reset password otp","Reset password otp:"+otp + "expire in 1 minute");
-        passwordResetRepository.save(resetOpt);
-    }
-
-    @Override
-    public void verifyOtp(String userName,String enteredOtp)
-    {
-        PasswordResetOtp resetOpt = passwordResetRepository.findByUserName(userName).orElseThrow(()-> new NotFoundException("otp not found"));
-
-        if(resetOpt.getExpiryTime().isBefore(LocalDateTime.now()))
-        {
-            throw new RuntimeException("otp expired");
-        }
-
-        if(resetOpt.getAttempt()>=MAX_ATTEMPTS)
-        {
-            throw new RuntimeException("max attempt reached");
-        }
-
-        if(!resetOpt.getOtp().equals(enteredOtp))
-        {
-            resetOpt.setAttempt(resetOpt.getAttempt()+1);
-            passwordResetRepository.save(resetOpt);
-            throw new RuntimeException("otp not match");
-        }
-
-        resetOpt.setVerified(true);
-        passwordResetRepository.save(resetOpt);
-    }
-
-
-   @Override
-   @Transactional
-    public void resetPassword(String userName,String newPassword)
-   {
-       PasswordResetOtp resetOpt = passwordResetRepository.findByUserName(userName).orElseThrow(()-> new NotFoundException("otp not found"));
-
-       if(!resetOpt.isVerified())
-       {
-           throw new RuntimeException("otp not verified");
-       }
-
-       User user = userRepository.findByEmail(userName).orElseThrow(()-> new UsernameNotFoundException("user not found"));
-
-       user.setPassword(passwordEncoder.encode(newPassword));
-       userRepository.save(user);
-       passwordResetRepository.deleteByUserName(userName);
-   }
-}
--------------
-package com.roima.hrms.auth.controller;
-
-import com.roima.hrms.auth.service.PasswordResetService;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-@RestController
-@RequestMapping("/api/auth")
-public class PasswordResetController {
-
-   private final PasswordResetService passwordResetService;
-   public  PasswordResetController(PasswordResetService passwordResetService) {
-       this.passwordResetService = passwordResetService;
-   }
-
-   @PostMapping("/fogot-password")
-   public ResponseEntity<String > forgotPassword(@RequestParam String userName)
-   {
-       passwordResetService.sendOtp(userName);
-       return  ResponseEntity.ok("Otp sent to register email");
-   }
-
-   @PostMapping("/verify-otp")
-    public ResponseEntity<String> verifyOtp(@RequestParam String userName,@RequestParam String otp)
-   {
-       passwordResetService.verifyOtp(userName,otp);
-       return ResponseEntity.ok("Otp verified");
-   }
-
-   @PostMapping("/reset-password")
-    public  ResponseEntity<String> resetPassword(@RequestParam String userName,@RequestParam String newPassword)
-   {
-       passwordResetService.resetPassword(userName,newPassword);
-       return  ResponseEntity.ok("Password reset successfully");
-   }
-}
------------
-import { useState } from "react";
-import { useAuth } from "../context/AuthContext";
+export const resetPassword = (userName, newPassword) =>
+  api.post("/auth/reset-password", null, {
+    params: { userName, newPassword },
+  });
+  --------------------
+  import { useState } from "react";
+import { sendOtp } from "../api/authAPI";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
-function Login(){
+export default function ForgotPassword() {
 
-    const {login} = useAuth();
-    const navigate = useNavigate();
+  const [email,setEmail] = useState("");
+  const navigate = useNavigate();
 
-    const [email,setEmail] = useState("");
-    const [password,setPassword] = useState("");
+  const handleSubmit = async(e)=>{
+    e.preventDefault();
 
-    const handleSubmit = async(e) =>{
-        e.preventDefault();
+    try{
+      await sendOtp(email);
+      toast.success("OTP sent to email");
+      navigate("/verify-otp",{state:{email}});
+    }catch{
+      toast.error("Failed to send OTP");
+    }
+  };
 
-        const result = await login(email,password);
+  return(
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
 
-        if(result.success)
-        {
-            toast.success("login succesfull")
-            navigate("/home")
-        }
-        else{
-            toast.error(result.message);
-        }
-    };
-    
-    return (
+      <form onSubmit={handleSubmit}
+        className="bg-white p-8 rounded-lg shadow-md w-96">
 
-         <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-8 rounded-lg shadow-md w-96"
-      >
-        <h2 className="text-2xl font-bold mb-6 text-center">HRMS Login</h2>
+        <h2 className="text-xl font-bold mb-6 text-center">
+          Forgot Password
+        </h2>
 
         <input
           type="email"
-          placeholder="Email"
+          placeholder="Enter your email"
           className="w-full p-2 border rounded mb-4"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-
-        <input
-          type="password"
-          placeholder="Password"
-          className="w-full p-2 border rounded mb-4"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e)=>setEmail(e.target.value)}
         />
 
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
-        >
-          Login
+          className="w-full bg-blue-600 text-white p-2 rounded">
+          Send OTP
         </button>
+
       </form>
+
     </div>
-
-    );
+  );
 }
+-------------------------------
+import { useState } from "react";
+import { verifyOtp } from "../api/authAPI";
+import { useLocation,useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
-export default Login;
+export default function VerifyOtp(){
+
+  const [otp,setOtp] = useState("");
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const email = location.state?.email;
+
+  const handleSubmit = async(e)=>{
+    e.preventDefault();
+
+    try{
+      await verifyOtp(email,otp);
+      toast.success("OTP verified");
+      navigate("/reset-password",{state:{email}});
+    }
+    catch{
+      toast.error("Invalid OTP");
+    }
+  };
+
+  return(
+
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+
+      <form onSubmit={handleSubmit}
+        className="bg-white p-8 rounded-lg shadow-md w-96">
+
+        <h2 className="text-xl font-bold mb-6 text-center">
+          Verify OTP
+        </h2>
+
+        <input
+          type="text"
+          placeholder="Enter OTP"
+          className="w-full p-2 border rounded mb-4"
+          value={otp}
+          onChange={(e)=>setOtp(e.target.value)}
+        />
+
+        <button
+          type="submit"
+          className="w-full bg-blue-600 text-white p-2 rounded">
+          Verify OTP
+        </button>
+
+      </form>
+
+    </div>
+  );
+}
+---------------------
+import { useState } from "react";
+import { resetPassword } from "../api/authAPI";
+import { useLocation,useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+
+export default function ResetPassword(){
+
+  const [password,setPassword] = useState("");
+
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const email = location.state?.email;
+
+  const handleSubmit = async(e)=>{
+    e.preventDefault();
+
+    try{
+      await resetPassword(email,password);
+      toast.success("Password reset successful");
+      navigate("/");
+    }
+    catch{
+      toast.error("Failed to reset password");
+    }
+  };
+
+  return(
+
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+
+      <form onSubmit={handleSubmit}
+        className="bg-white p-8 rounded-lg shadow-md w-96">
+
+        <h2 className="text-xl font-bold mb-6 text-center">
+          Reset Password
+        </h2>
+
+        <input
+          type="password"
+          placeholder="New Password"
+          className="w-full p-2 border rounded mb-4"
+          value={password}
+          onChange={(e)=>setPassword(e.target.value)}
+        />
+
+        <button
+          type="submit"
+          className="w-full bg-blue-600 text-white p-2 rounded">
+          Reset Password
+        </button>
+
+      </form>
+
+    </div>
+  );
+}
+--------------------
+<div className="text-right mb-4">
+  <span
+    onClick={()=>navigate("/forgot-password")}
+    className="text-blue-600 cursor-pointer text-sm">
+    Forgot Password?
+  </span>
+</div>
+-------------
+<Route path="/forgot-password" element={<ForgotPassword/>}/>
+<Route path="/verify-otp" element={<VerifyOtp/>}/>
+<Route path="/reset-password" element={<ResetPassword/>}/>
+
+
+  
