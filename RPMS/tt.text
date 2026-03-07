@@ -1,227 +1,209 @@
-package com.roima.hrms.gamescheduling.entity;
+package com.roima.hrms.auth.service;
 
+import com.roima.hrms.auth.entity.PasswordResetOtp;
+import com.roima.hrms.auth.repository.PasswordResetRepository;
+import com.roima.hrms.gamescheduling.exception.NotFoundException;
+import com.roima.hrms.mail.EmailService;
 import com.roima.hrms.user.entity.User;
-import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import com.roima.hrms.user.repository.UserRepository;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-@Entity
-@Table(
-    name="game_interest",
-    uniqueConstraints = {
-        @UniqueConstraint(name="unique_user_game", columnNames = {"user_id","fk_game_id"})
+import java.time.LocalDateTime;
+import java.util.Random;
+
+@Service
+public class PasswordResetServiceImpl implements PasswordResetService{
+
+    private static final int MAX_ATTEMPTS = 3;
+
+    private final PasswordResetRepository passwordResetRepository;
+    private final UserRepository userRepository;
+    private final EmailService emailService;
+    private  final PasswordEncoder passwordEncoder;
+
+    public PasswordResetServiceImpl(PasswordResetRepository passwordResetRepository,
+                                    UserRepository userRepository,
+                                    PasswordEncoder passwordEncoder,
+                                    EmailService emailService) {
+        this.passwordResetRepository = passwordResetRepository;
+        this.userRepository = userRepository;
+        this.emailService = emailService;
+        this.passwordEncoder = passwordEncoder;
     }
-)
-@Getter
-@Setter
-@AllArgsConstructor
-@NoArgsConstructor
-public class GameInterest {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name="pk_interest")
-    private Long id;
+    public String generateOtp(){
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name="user_id",nullable = false)
-    private User user;
+        Random random = new Random();
+        int otp = 100000 + random.nextInt((900000));
+        return String.valueOf(otp);
+    }
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name="fk_game_id",nullable = false)
-    private Game game;
+    @Override
+    public void sendOtp(String userName)
+    {
+        User user = userRepository.findByEmail(userName).orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-    @Column(nullable = false)
-    private Boolean active = true;   // 👈 SOFT DELETE FLAG
-}
+        String otp = generateOtp();
+        PasswordResetOtp resetOpt = new PasswordResetOtp();
+        resetOpt.setUserName(user.getEmail());
+        resetOpt.setOtp(otp);
+        resetOpt.setExpiryTime(LocalDateTime.now().plusMinutes(10));
+        resetOpt.setAttempt(0);
+        resetOpt.setVerified(false);
 
-package com.roima.hrms.gamescheduling.repository;
+        emailService.sendEmail("ravivadher141@gmail.com","Reset password otp","Reset password otp:"+otp + "expire in 1 minute");
+        passwordResetRepository.save(resetOpt);
+    }
 
-import com.roima.hrms.gamescheduling.entity.GameInterest;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+    @Override
+    public void verifyOtp(String userName,String enteredOtp)
+    {
+        PasswordResetOtp resetOpt = passwordResetRepository.findByUserName(userName).orElseThrow(()-> new NotFoundException("otp not found"));
 
-import java.util.List;
-import java.util.Optional;
-
-@Repository
-public interface GameInterestRepository extends JpaRepository<GameInterest,Long> {
-
-    List<GameInterest> findByGameIdAndActiveTrue(Long gameId);
-
-    List<GameInterest> findByUserIdAndActiveTrue(Long userId);
-
-    Optional<GameInterest> findByUserIdAndGameId(Long userId, Long gameId);
-
-    boolean existsByUserIdAndGameIdAndActiveTrue(Long userId, Long gameId);
-}
--------------------------
-@Override
-public ResponseEntity<String> interestedGame(Long gameId){
-
-    Game game = gameRepository.findById(gameId)
-            .orElseThrow(() -> new NotFoundException("Game not found"));
-
-    UserPrincipal userPrincipal =
-            (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-
-    User user = userRepository.findById(userPrincipal.getUserId())
-            .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-
-    Optional<GameInterest> existing =
-            gameInterestRepository.findByUserIdAndGameId(user.getId(), gameId);
-
-    if(existing.isPresent()){
-
-        GameInterest interest = existing.get();
-
-        if(Boolean.TRUE.equals(interest.getActive())){
-            throw new NotAllowedException("You have already interested for this game");
+        if(resetOpt.getExpiryTime().isBefore(LocalDateTime.now()))
+        {
+            throw new RuntimeException("otp expired");
         }
 
-        // Reactivate
-        interest.setActive(true);
-        gameInterestRepository.save(interest);
+        if(resetOpt.getAttempt()>=MAX_ATTEMPTS)
+        {
+            throw new RuntimeException("max attempt reached");
+        }
 
-        return ResponseEntity.ok("Interest added again");
+        if(!resetOpt.getOtp().equals(enteredOtp))
+        {
+            resetOpt.setAttempt(resetOpt.getAttempt()+1);
+            passwordResetRepository.save(resetOpt);
+            throw new RuntimeException("otp not match");
+        }
+
+        resetOpt.setVerified(true);
+        passwordResetRepository.save(resetOpt);
     }
 
-    GameInterest gameInterest = new GameInterest();
-    gameInterest.setGame(game);
-    gameInterest.setUser(user);
-    gameInterest.setActive(true);
 
-    gameInterestRepository.save(gameInterest);
+   @Override
+   @Transactional
+    public void resetPassword(String userName,String newPassword)
+   {
+       PasswordResetOtp resetOpt = passwordResetRepository.findByUserName(userName).orElseThrow(()-> new NotFoundException("otp not found"));
 
-    PlayerStats stats = new PlayerStats();
-    stats.setGame(game);
-    stats.setUser(user);
-    playerStatsRepository.save(stats);
+       if(!resetOpt.isVerified())
+       {
+           throw new RuntimeException("otp not verified");
+       }
 
-    return ResponseEntity.ok("Your Interest for Game is saved successfully");
+       User user = userRepository.findByEmail(userName).orElseThrow(()-> new UsernameNotFoundException("user not found"));
+
+       user.setPassword(passwordEncoder.encode(newPassword));
+       userRepository.save(user);
+       passwordResetRepository.deleteByUserName(userName);
+   }
 }
------------------------
-@Override
-public ResponseEntity<String> removeInterest(Long gameId){
+-------------
+package com.roima.hrms.auth.controller;
 
-    UserPrincipal userPrincipal =
-            (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+import com.roima.hrms.auth.service.PasswordResetService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
-    User user = userRepository.findById(userPrincipal.getUserId())
-            .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+@RestController
+@RequestMapping("/api/auth")
+public class PasswordResetController {
 
-    GameInterest interest = gameInterestRepository
-            .findByUserIdAndGameId(user.getId(), gameId)
-            .orElseThrow(() -> new NotFoundException("Interest not found"));
+   private final PasswordResetService passwordResetService;
+   public  PasswordResetController(PasswordResetService passwordResetService) {
+       this.passwordResetService = passwordResetService;
+   }
 
-    if(!interest.getActive()){
-        throw new NotAllowedException("Interest already removed");
-    }
+   @PostMapping("/fogot-password")
+   public ResponseEntity<String > forgotPassword(@RequestParam String userName)
+   {
+       passwordResetService.sendOtp(userName);
+       return  ResponseEntity.ok("Otp sent to register email");
+   }
 
-    interest.setActive(false);
+   @PostMapping("/verify-otp")
+    public ResponseEntity<String> verifyOtp(@RequestParam String userName,@RequestParam String otp)
+   {
+       passwordResetService.verifyOtp(userName,otp);
+       return ResponseEntity.ok("Otp verified");
+   }
 
-    gameInterestRepository.save(interest);
-
-    return ResponseEntity.ok("Interest removed successfully");
+   @PostMapping("/reset-password")
+    public  ResponseEntity<String> resetPassword(@RequestParam String userName,@RequestParam String newPassword)
+   {
+       passwordResetService.resetPassword(userName,newPassword);
+       return  ResponseEntity.ok("Password reset successfully");
+   }
 }
-----------------------
-@Override
-public List<GameInterestUserDto> getGameInterested(Long gameId){
+-----------
+import { useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
-    gameRepository.findById(gameId)
-            .orElseThrow(() -> new NotFoundException("Game not found"));
+function Login(){
 
-    return gameInterestRepository.findByGameIdAndActiveTrue(gameId)
-            .stream()
-            .map(InterestUserMapper::toDto)
-            .toList();
-}
------------------------------
-@Override
-public List<GameInterestUserDto> getMyGameInterested(){
+    const {login} = useAuth();
+    const navigate = useNavigate();
 
-    UserPrincipal userPrincipal =
-            (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    const [email,setEmail] = useState("");
+    const [password,setPassword] = useState("");
 
-    User user = userRepository.findById(userPrincipal.getUserId())
-            .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+    const handleSubmit = async(e) =>{
+        e.preventDefault();
 
-    return gameInterestRepository.findByUserIdAndActiveTrue(user.getId())
-            .stream()
-            .map(InterestUserMapper::toDto)
-            .toList();
-}
------------------------------
-@PostMapping("/{gameId}/gameInterest")
-public ResponseEntity<String> gameInterest(@PathVariable Long gameId)
-{
-    return gameService.interestedGame(gameId);
-}
+        const result = await login(email,password);
 
-@DeleteMapping("/{gameId}/gameInterest")
-public ResponseEntity<String> removeInterest(@PathVariable Long gameId)
-{
-    return gameService.removeInterest(gameId);
-}
---------------------------------
-export const removeInterest = (gameId) =>
-    api.delete(`/games/${gameId}/gameInterest`);
-
-export const fetchMyInterest = () =>
-    api.get(`/games/gameInterest/my`).then(res => res.data);
-    -----------------------
-    const [myInterest, setMyInterest] = useState([]);
-    loadMyInterest(); //useeefect
-    const loadMyInterest = async () => {
-    try{
-        const data = await fetchMyInterest();
-        const ids = data.map(i => i.gameId);
-        setMyInterest(ids);
-    }catch{}
-};
--------------------
-const handleRemoveInterest = async (gameId) => {
-    try{
-        await removeInterest(gameId);
-        toast.success("Interest removed");
-        loadMyInterest();
-    }catch{
-        toast.error("Failed to remove interest");
-    }
-};
---------------------
-const handleInterest = async (gameId) => {
-    try{
-        await addInterest(gameId);
-        toast.success("Interest added");
-        loadMyInterest();
-    }catch(e){
-        console.log(e);
-    }
-};
--------------------
-{myInterest.includes(g.gameId) ? (
-    <button
-        className="bg-red-500 text-white py-2 rounded hover:bg-red-400"
-        onClick={() => handleRemoveInterest(g.gameId)}
-    >
-        Remove Interest
-    </button>
-) : (
-    <button
-        className="bg-blue-400 text-white py-2 rounded hover:bg-blue-400"
-        onClick={() => handleInterest(g.gameId)}
-    >
-        Add Interest
-    </button>
-)}
---------------------
-
-
-
-
+        if(result.success)
+        {
+            toast.success("login succesfull")
+            navigate("/home")
+        }
+        else{
+            toast.error(result.message);
+        }
+    };
     
-    
+    return (
 
+         <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white p-8 rounded-lg shadow-md w-96"
+      >
+        <h2 className="text-2xl font-bold mb-6 text-center">HRMS Login</h2>
+
+        <input
+          type="email"
+          placeholder="Email"
+          className="w-full p-2 border rounded mb-4"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+
+        <input
+          type="password"
+          placeholder="Password"
+          className="w-full p-2 border rounded mb-4"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+
+        <button
+          type="submit"
+          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
+        >
+          Login
+        </button>
+      </form>
+    </div>
+
+    );
+}
+
+export default Login;
