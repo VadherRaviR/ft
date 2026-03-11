@@ -1,85 +1,99 @@
-package com.roima.hrms.config;
-
-import com.roima.hrms.auth.jwt.JwtAuthFilter;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-import java.util.Arrays;
-
-@EnableMethodSecurity
-@Configuration
-public class SecurityConfig {
-
-    private final AuthenticationConfiguration authenticationConfiguration;
-    private final JwtAuthFilter jwtAuthFilter;
-    public SecurityConfig(AuthenticationConfiguration authenticationConfiguration,
-                          JwtAuthFilter jwtAuthFilter)
-    {
-        this.authenticationConfiguration = authenticationConfiguration;
-        this.jwtAuthFilter = jwtAuthFilter;
+ <div className="form-group row">
+                  <label className="a-label invalid required col-sm-4 ps-xl-5 col-form-label">
+                    Designation
+                  </label>
+                                    <div className="col-sm-5">
+                                        <Dropdown className="small"
+                                            placeholder="Select Designation(s)"
+                                            options={designation ? designation.map((type, index) => (
+                                                {
+                              value: type.designation_id,
+                              label: type.name,
+                            }))
+                          : []
+                      }
+                                            value={selectedDesignations.length > 0 ? selectedDesignations : setDefaultValueForDropdown('designation')}
+                                            onChange={(selectedOptions) => {
+                                                setSelectedDesignations(selectedOptions || []);
+                                            }}
+                                           defaultValue={setDefaultValueForDropdown("designation")}
+                                            isMulti={true}
+                                            required
+                    />
+                  </div>  
+                  const setDefaultValueForDropdown = (key) => {
+    switch (key) {
+      case "supervisor":
+        {
+          //   console.log(supervisor);
+          //   console.log(props.employeeDetail);
+          const s = supervisor.filter(
+            (option) =>
+              parseInt(option.supervisor_id) ===
+              props.employeeDetail.supervisor_id
+          )[0];
+          return s
+            ? {
+                value: s.supervisor_id,
+                label: s.name,
+              }
+            : null;
+        }
+        break;
+      case "designation":
+        {
+          const d = designation.filter(
+            (option) =>
+              option.designation_id === props.employeeDetail.designation_id
+          )[0];
+          return d
+            ? {
+                value: d.designation_id,
+                label: d.name,
+              }
+            : null;
+        }
+        break;
+      case "business_unit":
+        {
+          const ba = businessArea.filter(
+            (option) =>
+              option.business_unit_id === props.employeeDetail.business_unit_id
+          )[0];
+          return ba
+            ? {
+                value: ba.business_unit_id,
+                label: ba.name,
+              }
+            : null;
+        }
+        break;
+      case "user_type":
+        {
+          const ut = userType.filter(
+            (option) =>
+              option.user_type_id === props.employeeDetail.user_type_id
+          )[0];
+          return ut
+            ? {
+                value: ut.user_type_id,
+                label: ut.name,
+              }
+            : null;
+        }
+        break;
+      case "location":
+        {
+          const l = location.filter(
+            (option) => option.id === props.employeeDetail.location_id
+          )[0];
+          return l
+            ? {
+                value: l,
+                label: l.name,
+              }
+            : null;
+        }
+        break;
     }
-
-    @Bean
-    public AuthenticationManager authenticationManager() throws Exception{
-        return authenticationConfiguration.getAuthenticationManager();
-    }
-
-    //security filter
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http,
-                                           JwtAuthFilter jwtAuthFilter) throws Exception {
-
-        http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable())
-                .sessionManagement(sm ->
-                        sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/login").permitAll()
-                        .requestMatchers("/api/**").authenticated()
-                        .requestMatchers("/auth/getall").hasRole("Employee")
-                        .requestMatchers("/api/travels/**").hasAnyRole("Employee", "Hr","Manager")
-                        .requestMatchers("/api/expenses/**").hasAnyRole("Employee", "Hr")
-                        .requestMatchers("/api/admin/**").hasRole("Hr")
-                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS,"/**").permitAll()
-                        .anyRequest().permitAll()
-                )
-                .addFilterBefore(jwtAuthFilter,
-                        UsernamePasswordAuthenticationFilter.class);
-
-        return http.build();
-    }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5554"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
-
-    //passwords encoding
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-}
+  };
