@@ -1,3 +1,177 @@
+const setValue = (details) => {
+    setUserId(details.user_id);
+    setEmployeeName(details.name);
+    setEmployeeMail(details.email);
+    setGender(details.gender);
+    setDob(details.dob);
+    setAddress(details.address);
+    setContact(details.contact_no);
+    setEmergencyContact1(details.emergency_contact1);
+    setEmergencyContact2(details.emergency_contact2);
+    setSelectedUserType(details.user_type_id);
+    setSelectedBusinessArea(details.business_unit_id);
+    setSelectedUserType(details.user_type_id);
+    setSelectedSupervisor(details.supervisor_id);
+    setLwd(details.last_working_date);
+    // console.log(details);
+    setDoj(details.joining_date);
+    setIsBalanceUpdated(details.isbalanceupdated);
+    setSelectedLocation(details.location_id);
+        if (details.designation_ids && details.designation_ids.length > 0) {
+            fetchDesignationMappings(details.user_id, details.designation_ids);
+        } else {
+            setSelectedDesignations([]);
+        }
+    }
+
+    const fetchDesignationMappings = async (userId, designationIds) => {
+        try {
+            if (designationIds && designationIds.length > 0) {
+                const mappedDesignations = designationIds.map(designationId => ({
+                    value: designationId,
+                    label: designation.find(d => d.designation_id === designationId)?.name || ''
+                }));
+                setSelectedDesignations(mappedDesignations);
+            } else {
+                setSelectedDesignations([]);
+            }
+        } catch (error) {
+            console.error('Error processing designation mappings:', error);
+        }
+    }
+
+
+  const submitHandler = async (event) => {
+    event.preventDefault();
+    setShowModal(false);
+    const request = {
+      user_type_id: selectedUserType,
+      name: employeeName,
+      photo: "photo.jpg",
+      email: employeeMail,
+      supervisor_id: selectedSupervisor,
+            designation_ids: selectedDesignations.length > 0 ? selectedDesignations.map(d => d.value) : [],
+      business_unit_id: selectedBusinessArea,
+      contact_no: contact,
+      gender: gender,
+      dob: dob,
+      address: address,
+      emergency_contact1: emergencyContact1,
+      emergency_contact2: emergencyContact2,
+      joining_date: doj,
+      last_working_date: lwd,
+      modified_by: loggin_user.user_id,
+      location_id: selectedLocation,
+      isBalanceUpdate: isbalanceupdated,
+    };
+    // console.log(request);
+    try {
+            const response = await api.put(`${process.env.REACT_APP_URL_PREFIX}User/${userId}`, request,
+        {
+          headers: {
+            Authorization: localStorage.getItem("token"),
+          },
+        }
+      );
+      if (response?.data?.message) {
+        setErrorMessage(response?.data?.message);
+        setShowErrorModal(true);
+      } else {
+        resetAll();
+        window.location.reload(true);
+      }
+    } catch (error) {
+      setErrorMessage(error?.response?.data?.title);
+      setShowErrorModal(true);
+      if (error?.response?.status === 401) {
+        setShow(true);
+      }
+    }
+  };
+
+  const designaiton_data = async () => {
+        await api.get(`${process.env.REACT_APP_URL_PREFIX}Master/designations`, {
+        headers: {
+          Authorization: localStorage.getItem("token"),
+        },
+      })
+      .then((response) => {
+        setDesignation(response.data.data);
+      })
+      .catch((error) => {
+        if (error?.response?.status === 401) {
+          setShow(true);
+        }
+      });
+  };
+  const usertype_data = async () => {
+        await api.get(`${process.env.REACT_APP_URL_PREFIX}Master/usertypes`, {
+        headers: {
+          Authorization: localStorage.getItem("token"),
+        },
+      })
+      .then((response) => {
+        setUserType(response.data.data);
+      })
+      .catch(console.error());
+  };
+
+  const supervisor_data = async () => {
+        await api.get(`${process.env.REACT_APP_URL_PREFIX}User/supervisors`, {
+        headers: {
+          Authorization: localStorage.getItem("token"),
+        },
+      })
+      .then((response) => {
+        setSupervisor(response.data.data);
+      })
+      .catch((error) => {
+        if (error?.response?.status === 401) {
+          setShow(true);
+        }
+      });
+  };
+
+  const businessarea_data = async () => {
+        await api.get(`${process.env.REACT_APP_URL_PREFIX}Master/businessunit`, {
+        headers: {
+          Authorization: localStorage.getItem("token"),
+        },
+      })
+      .then((response) => {
+        setBusinessArea(response.data.data);
+      })
+      .catch((error) => {
+        if (error?.response?.status === 401) {
+          setShow(true);
+        }
+      });
+  };
+
+  const location_data = async () => {
+        await api.get(`${process.env.REACT_APP_URL_PREFIX}Master/location`, {
+        headers: {
+          Authorization: localStorage.getItem("token"),
+        },
+      })
+      .then((response) => {
+        setLocation(response.data.data);
+      })
+      .catch((error) => {
+        if (error?.response?.status === 401) {
+          setShow(true);
+        }
+      });
+  };
+
+  const formatDateLocal = (date) => {
+    if (!date) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
   useEffect(() => {
     setLoading(true);
     designaiton_data();
@@ -9,14 +183,16 @@
     setTimeout(() => {
       setLoading(false);
     }, 2000);
-  }, []);
+  }, [props.employeeDetail]);
 
 
 
  useEffect(()=>{
     console.log("listtttt",designation);
         console.log("employee",props.employeeDetail?.designation_id);
-     if(!designation?.length || !props.employeeDetail?.designation_id) return;
+     if(!designation.length) return;
+     if(!props.employeeDetail)return;
+     if(!props.employeeDetail.designation_id) return;
     
      if(selectedDesignations.length) return;
 
@@ -32,155 +208,36 @@
             },[designation,props.employeeDetail])
 
 
-            listtttt []length: 0[[Prototype]]: Array(0)
-EditEmployee.js:253 employee undefined
-EditEmployee.js:252 listtttt []
-EditEmployee.js:253 employee undefined
-EditEmployee.js:252 listtttt  0
-: 
-{designation_id: 1, name: 'Delivery Manager'}
-1
-: 
-{designation_id: 2, name: 'Solution Architect'}
-2
-: 
-{designation_id: 3, name: 'Sr. Software Engineer'}
-3
-: 
-{designation_id: 4, name: 'Jr. Software Engineer'}
-4
-: 
-{designation_id: 5, name: 'Intern'}
-5
-: 
-{designation_id: 6, name: 'Quintiq Specialist'}
-6
-: 
-{designation_id: 7, name: 'MES Specialist'}
-7
-: 
-{designation_id: 8, name: 'OSISoft Developer'}
-8
-: 
-{designation_id: 9, name: 'Kinaxis Consultant'}
-9
-: 
-{designation_id: 10, name: 'HR Manager'}
-10
-: 
-{designation_id: 11, name: 'Sr. HR Executive'}
-11
-: 
-{designation_id: 12, name: 'BI Developer'}
-12
-: 
-{designation_id: 13, name: 'Quintiq TC'}
-13
-: 
-{designation_id: 14, name: 'Digital Marketing Specialist'}
-14
-: 
-{designation_id: 15, name: 'Admin'}
-15
-: 
-{designation_id: 16, name: 'Office Help'}
-16
-: 
-{designation_id: 17, name: 'Junior Consultant'}
-17
-: 
-{designation_id: 18, name: 'Full Stack Java Developer'}
-18
-: 
-{designation_id: 19, name: 'Marketing Copywriter'}
-19
-: 
-{designation_id: 20, name: 'Director, Quintiq'}
-20
-: 
-{designation_id: 21, name: 'OSI PI Consultant'}
-21
-: 
-{designation_id: 22, name: 'Jr. OSI PI Consultant'}
-22
-: 
-{designation_id: 23, name: 'Jr. Quintiq Specialist'}
-23
-: 
-{designation_id: 24, name: 'Jr. MES & Scada Specialist'}
-24
-: 
-{designation_id: 25, name: 'Technical Customer Service Coordinator '}
-25
-: 
-{designation_id: 26, name: 'Project Manager \n '}
-26
-: 
-{designation_id: 27, name: 'Jr. Finance Manager'}
-27
-: 
-{designation_id: 28, name: 'Analyst'}
-28
-: 
-{designation_id: 29, name: 'Consultant'}
-29
-: 
-{designation_id: 30, name: 'Sr. Consultant\n'}
-30
-: 
-{designation_id: 31, name: 'Sr. Analyst\n'}
-31
-: 
-{designation_id: 32, name: 'Sr. IT Analyst\n'}
-32
-: 
-{designation_id: 33, name: 'Manager -Finance & Compliance\n'}
-33
-: 
-{designation_id: 34, name: 'Ops. Analyst\n'}
-34
-: 
-{designation_id: 35, name: 'Assistant Manager\n'}
-35
-: 
-{designation_id: 36, name: 'Sr. SQL Consultant – IT Solution\n'}
-36
-: 
-{designation_id: 37, name: 'Director, Mumbai'}
-37
-: 
-{designation_id: 38, name: 'Full Stack Developer'}
-38
-: 
-{designation_id: 39, name: 'Security'}
-39
-: 
-{designation_id: 40, name: 'Cloud Engineer'}
-40
-: 
-{designation_id: 41, name: 'Senior Accountant'}
-41
-: 
-{designation_id: 42, name: 'Jr. Software Developer'}
-42
-: 
-{designation_id: 43, name: 'Jr. Ops. Analyst\n'}
-43
-: 
-{designation_id: 44, name: 'Accounts Assistant'}
-44
-: 
-{designation_id: 45, name: 'Group Finance Manage'}
-45
-: 
-{designation_id: 46, name: 'CRM Developer'}
-46
-: 
-designation_id
-: 
-47
-name
-: 
-"Full stack & BI Develope
-d never prints
-
+  const setDefaultValueForDropdown = (key) => {
+    switch (key) {
+      case "supervisor":
+        {
+          //   console.log(supervisor);
+          //   console.log(props.employeeDetail);
+          const s = supervisor.filter(
+            (option) =>
+              parseInt(option.supervisor_id) ===
+              props.employeeDetail.supervisor_id
+          )[0];
+          return s
+            ? {
+                value: s.supervisor_id,
+                label: s.name,
+              }
+            : null;
+        }
+        break;
+      case "designation":
+        {
+          const d = designation.filter(
+            (option) =>
+              option.designation_id === props.employeeDetail.designation_id
+          );
+          return d.length
+            ?d.map((item) =>({
+                value: item.designation_id,
+                label: item.name,
+              }))
+            : [];
+        }
+        break;
