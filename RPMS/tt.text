@@ -1,15 +1,18 @@
- useEffect(() => {
+useEffect(() => {
     setLoading(true);
     designaiton_data();
     supervisor_data();
     businessarea_data();
     usertype_data();
     location_data();
-    setDefaultDestination();
     setValue(props.employeeDetail);
     setTimeout(() => {
       setLoading(false);
     }, 2000);
+  }, [props.employeeDetail]);
+
+  useEffect(()=>{
+         setDefaultDestination();
   }, [designation,props.employeeDetail]);
 
   const setDefaultDestination = ()=>{
@@ -25,3 +28,26 @@
 
               setSelectedDesignations(d);
   }
+   <div className="form-group row">
+                  <label className="a-label invalid required col-sm-4 ps-xl-5 col-form-label">
+                    Designation
+                  </label>
+                                    <div className="col-sm-5">
+                                        <Dropdown className="small"
+                                            placeholder="Select Designation(s)"
+                                            options={designation ? designation.map((type, index) => (
+                                                {
+                              value: type.designation_id,
+                              label: type.name,
+                            }))
+                          : []
+                      }
+                                            value={selectedDesignations.length > 0 ? selectedDesignations : setDefaultValueForDropdown('designation')}
+                                            onChange={(selectedOptions) => {
+                                                setSelectedDesignations(selectedOptions || []);
+                                            }}
+                                            isMulti={true}
+                                            required
+                    />
+                  </div>
+                </div>
