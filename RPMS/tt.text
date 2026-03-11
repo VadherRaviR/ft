@@ -1,99 +1,27 @@
- const setDefaultValueForDropdown = (key) => {
-    switch (key) {
-      case "supervisor":
-        {
-          //   console.log(supervisor);
-          //   console.log(props.employeeDetail);
-          const s = supervisor.filter(
+ useEffect(() => {
+    setLoading(true);
+    designaiton_data();
+    supervisor_data();
+    businessarea_data();
+    usertype_data();
+    location_data();
+    setDefaultDestination();
+    setValue(props.employeeDetail);
+    setTimeout(() => {
+      setLoading(false);
+    }, 2000);
+  }, [designation,props.employeeDetail]);
+
+  const setDefaultDestination = ()=>{
+     if(designation?.length || !props.employeeDetail?.designation_id) return;
+
+      const d = designation.filter(
             (option) =>
-              parseInt(option.supervisor_id) ===
-              props.employeeDetail.supervisor_id
-          )[0];
-          return s
-            ? {
-                value: s.supervisor_id,
-                label: s.name,
-              }
-            : null;
-        }
-        break;
-      case "designation":
-        {
-          const d = designation.filter(
-            (option) =>
-              option.designation_id === props.employeeDetail.designation_id
-          );
-          return d.length
-            ?d.map((item) =>({
+              Number(option.designation_id) === Number(props.employeeDetail.designation_id)
+          ).map((item) =>({
                 value: item.designation_id,
                 label: item.name,
-              }))
-            : [];
-        }
-        break;
-      case "business_unit":
-        {
-          const ba = businessArea.filter(
-            (option) =>
-              option.business_unit_id === props.employeeDetail.business_unit_id
-          )[0];
-          return ba
-            ? {
-                value: ba.business_unit_id,
-                label: ba.name,
-              }
-            : null;
-        }
-        break;
-      case "user_type":
-        {
-          const ut = userType.filter(
-            (option) =>
-              option.user_type_id === props.employeeDetail.user_type_id
-          )[0];
-          return ut
-            ? {
-                value: ut.user_type_id,
-                label: ut.name,
-              }
-            : null;
-        }
-        break;
-      case "location":
-        {
-          const l = location.filter(
-            (option) => option.id === props.employeeDetail.location_id
-          )[0];
-          return l
-            ? {
-                value: l,
-                label: l.name,
-              }
-            : null;
-        }
-        break;
-    }
-  }; 
-     <div className="form-group row">
-                  <label className="a-label invalid required col-sm-4 ps-xl-5 col-form-label">
-                    Designation
-                  </label>
-                                    <div className="col-sm-5">
-                                        <Dropdown className="small"
-                                            placeholder="Select Designation(s)"
-                                            options={designation ? designation.map((type, index) => (
-                                                {
-                              value: type.designation_id,
-                              label: type.name,
-                            }))
-                          : []
-                      }
-                                            value={selectedDesignations.length > 0 ? selectedDesignations : setDefaultValueForDropdown('designation')}
-                                            onChange={(selectedOptions) => {
-                                                setSelectedDesignations(selectedOptions || []);
-                                            }}
-                                            isMulti={true}
-                                            required
-                    />
-                  </div>
-                </div>
+              }));
+
+              setSelectedDesignations(d);
+  }
