@@ -1,27 +1,4 @@
- <div className="form-group row">
-                  <label className="a-label invalid required col-sm-4 ps-xl-5 col-form-label">
-                    Designation
-                  </label>
-                                    <div className="col-sm-5">
-                                        <Dropdown className="small"
-                                            placeholder="Select Designation(s)"
-                                            options={designation ? designation.map((type, index) => (
-                                                {
-                              value: type.designation_id,
-                              label: type.name,
-                            }))
-                          : []
-                      }
-                                            value={selectedDesignations.length > 0 ? selectedDesignations : setDefaultValueForDropdown('designation')}
-                                            onChange={(selectedOptions) => {
-                                                setSelectedDesignations(selectedOptions || []);
-                                            }}
-                                           defaultValue={setDefaultValueForDropdown("designation")}
-                                            isMulti={true}
-                                            required
-                    />
-                  </div>  
-                  const setDefaultValueForDropdown = (key) => {
+ const setDefaultValueForDropdown = (key) => {
     switch (key) {
       case "supervisor":
         {
@@ -45,13 +22,13 @@
           const d = designation.filter(
             (option) =>
               option.designation_id === props.employeeDetail.designation_id
-          )[0];
-          return d
-            ? {
-                value: d.designation_id,
-                label: d.name,
-              }
-            : null;
+          );
+          return d.length
+            ?d.map((item) =>({
+                value: item.designation_id,
+                label: item.name,
+              }))
+            : [];
         }
         break;
       case "business_unit":
@@ -96,4 +73,27 @@
         }
         break;
     }
-  };
+  }; 
+     <div className="form-group row">
+                  <label className="a-label invalid required col-sm-4 ps-xl-5 col-form-label">
+                    Designation
+                  </label>
+                                    <div className="col-sm-5">
+                                        <Dropdown className="small"
+                                            placeholder="Select Designation(s)"
+                                            options={designation ? designation.map((type, index) => (
+                                                {
+                              value: type.designation_id,
+                              label: type.name,
+                            }))
+                          : []
+                      }
+                                            value={selectedDesignations.length > 0 ? selectedDesignations : setDefaultValueForDropdown('designation')}
+                                            onChange={(selectedOptions) => {
+                                                setSelectedDesignations(selectedOptions || []);
+                                            }}
+                                            isMulti={true}
+                                            required
+                    />
+                  </div>
+                </div>
