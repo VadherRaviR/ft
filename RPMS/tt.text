@@ -36,5 +36,151 @@
 EditEmployee.js:253 employee undefined
 EditEmployee.js:252 listtttt []
 EditEmployee.js:253 employee undefined
-EditEmployee.js:252 listtttt  
+EditEmployee.js:252 listtttt  0
+: 
+{designation_id: 1, name: 'Delivery Manager'}
+1
+: 
+{designation_id: 2, name: 'Solution Architect'}
+2
+: 
+{designation_id: 3, name: 'Sr. Software Engineer'}
+3
+: 
+{designation_id: 4, name: 'Jr. Software Engineer'}
+4
+: 
+{designation_id: 5, name: 'Intern'}
+5
+: 
+{designation_id: 6, name: 'Quintiq Specialist'}
+6
+: 
+{designation_id: 7, name: 'MES Specialist'}
+7
+: 
+{designation_id: 8, name: 'OSISoft Developer'}
+8
+: 
+{designation_id: 9, name: 'Kinaxis Consultant'}
+9
+: 
+{designation_id: 10, name: 'HR Manager'}
+10
+: 
+{designation_id: 11, name: 'Sr. HR Executive'}
+11
+: 
+{designation_id: 12, name: 'BI Developer'}
+12
+: 
+{designation_id: 13, name: 'Quintiq TC'}
+13
+: 
+{designation_id: 14, name: 'Digital Marketing Specialist'}
+14
+: 
+{designation_id: 15, name: 'Admin'}
+15
+: 
+{designation_id: 16, name: 'Office Help'}
+16
+: 
+{designation_id: 17, name: 'Junior Consultant'}
+17
+: 
+{designation_id: 18, name: 'Full Stack Java Developer'}
+18
+: 
+{designation_id: 19, name: 'Marketing Copywriter'}
+19
+: 
+{designation_id: 20, name: 'Director, Quintiq'}
+20
+: 
+{designation_id: 21, name: 'OSI PI Consultant'}
+21
+: 
+{designation_id: 22, name: 'Jr. OSI PI Consultant'}
+22
+: 
+{designation_id: 23, name: 'Jr. Quintiq Specialist'}
+23
+: 
+{designation_id: 24, name: 'Jr. MES & Scada Specialist'}
+24
+: 
+{designation_id: 25, name: 'Technical Customer Service Coordinator '}
+25
+: 
+{designation_id: 26, name: 'Project Manager \n '}
+26
+: 
+{designation_id: 27, name: 'Jr. Finance Manager'}
+27
+: 
+{designation_id: 28, name: 'Analyst'}
+28
+: 
+{designation_id: 29, name: 'Consultant'}
+29
+: 
+{designation_id: 30, name: 'Sr. Consultant\n'}
+30
+: 
+{designation_id: 31, name: 'Sr. Analyst\n'}
+31
+: 
+{designation_id: 32, name: 'Sr. IT Analyst\n'}
+32
+: 
+{designation_id: 33, name: 'Manager -Finance & Compliance\n'}
+33
+: 
+{designation_id: 34, name: 'Ops. Analyst\n'}
+34
+: 
+{designation_id: 35, name: 'Assistant Manager\n'}
+35
+: 
+{designation_id: 36, name: 'Sr. SQL Consultant – IT Solution\n'}
+36
+: 
+{designation_id: 37, name: 'Director, Mumbai'}
+37
+: 
+{designation_id: 38, name: 'Full Stack Developer'}
+38
+: 
+{designation_id: 39, name: 'Security'}
+39
+: 
+{designation_id: 40, name: 'Cloud Engineer'}
+40
+: 
+{designation_id: 41, name: 'Senior Accountant'}
+41
+: 
+{designation_id: 42, name: 'Jr. Software Developer'}
+42
+: 
+{designation_id: 43, name: 'Jr. Ops. Analyst\n'}
+43
+: 
+{designation_id: 44, name: 'Accounts Assistant'}
+44
+: 
+{designation_id: 45, name: 'Group Finance Manage'}
+45
+: 
+{designation_id: 46, name: 'CRM Developer'}
+46
+: 
+designation_id
+: 
+47
+name
+: 
+"Full stack & BI Develope
 d never prints
+
