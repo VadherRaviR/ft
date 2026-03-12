@@ -1,4 +1,87 @@
-const setValue = (details) => {
+ <div className="form-group row">
+                  <label className="a-label invalid required col-sm-4 ps-xl-5 col-form-label">
+                    Designation
+                  </label>
+                                    <div className="col-sm-5">
+                                        <Dropdown className="small"
+                                            placeholder="Select Designation(s)"
+                                            options={designation ? designation.map((type, index) => (
+                                                {
+                              value: type.designation_id,
+                              label: type.name,
+                            }))
+                          : []
+                      }
+                                            value={selectedDesignations.length > 0 ? selectedDesignations : setDefaultValueForDropdown('designation')}
+                                            onChange={(selectedOptions) => {
+                                                setSelectedDesignations(selectedOptions || []);
+                                            }}
+                                            isMulti={true}
+                                            required
+                    />
+                  </div>
+                </div>
+                ------------
+                 case "designation":
+        {
+          const d = designation.filter(
+            (option) =>
+              option.designation_id === props.employeeDetail.designation_id
+          )[0];
+          return d
+            ? {
+                value: d.designation_id,
+                label: d.name,
+              }
+            : null;
+            -------------
+             useEffect(() => {
+    setLoading(true);
+    designaiton_data();
+    supervisor_data();
+    businessarea_data();
+    usertype_data();
+    location_data();
+    setValue(props.employeeDetail);
+    setTimeout(() => {
+      setLoading(false);
+    }, 2000);
+  }, [props.employeeDetail]);
+  -----------------------------
+   const designaiton_data = async () => {
+        await api.get(`${process.env.REACT_APP_URL_PREFIX}Master/designations`, {
+        headers: {
+          Authorization: localStorage.getItem("token"),
+        },
+      })
+      .then((response) => {
+        setDesignation(response.data.data);
+      })
+      .catch((error) => {
+        if (error?.response?.status === 401) {
+          setShow(true);
+        }
+      });
+  };
+  -----------------------
+    const fetchDesignationMappings = async (userId, designationIds) => {
+        try {
+            if (designationIds && designationIds.length > 0) {
+                const mappedDesignations = designationIds.map(designationId => ({
+                    value: designationId,
+                    label: designation.find(d => d.designation_id === designationId)?.name || ''
+                }));
+                setSelectedDesignations(mappedDesignations);
+            } else {
+                setSelectedDesignations([]);
+            }
+        } catch (error) {
+            console.error('Error processing designation mappings:', error);
+        }
+    }
+
+--------------------------
+  const setValue = (details) => {
     setUserId(details.user_id);
     setEmployeeName(details.name);
     setEmployeeMail(details.email);
@@ -23,221 +106,5 @@ const setValue = (details) => {
             setSelectedDesignations([]);
         }
     }
-
-    const fetchDesignationMappings = async (userId, designationIds) => {
-        try {
-            if (designationIds && designationIds.length > 0) {
-                const mappedDesignations = designationIds.map(designationId => ({
-                    value: designationId,
-                    label: designation.find(d => d.designation_id === designationId)?.name || ''
-                }));
-                setSelectedDesignations(mappedDesignations);
-            } else {
-                setSelectedDesignations([]);
-            }
-        } catch (error) {
-            console.error('Error processing designation mappings:', error);
+    -------------------------
         }
-    }
-
-
-  const submitHandler = async (event) => {
-    event.preventDefault();
-    setShowModal(false);
-    const request = {
-      user_type_id: selectedUserType,
-      name: employeeName,
-      photo: "photo.jpg",
-      email: employeeMail,
-      supervisor_id: selectedSupervisor,
-            designation_ids: selectedDesignations.length > 0 ? selectedDesignations.map(d => d.value) : [],
-      business_unit_id: selectedBusinessArea,
-      contact_no: contact,
-      gender: gender,
-      dob: dob,
-      address: address,
-      emergency_contact1: emergencyContact1,
-      emergency_contact2: emergencyContact2,
-      joining_date: doj,
-      last_working_date: lwd,
-      modified_by: loggin_user.user_id,
-      location_id: selectedLocation,
-      isBalanceUpdate: isbalanceupdated,
-    };
-    // console.log(request);
-    try {
-            const response = await api.put(`${process.env.REACT_APP_URL_PREFIX}User/${userId}`, request,
-        {
-          headers: {
-            Authorization: localStorage.getItem("token"),
-          },
-        }
-      );
-      if (response?.data?.message) {
-        setErrorMessage(response?.data?.message);
-        setShowErrorModal(true);
-      } else {
-        resetAll();
-        window.location.reload(true);
-      }
-    } catch (error) {
-      setErrorMessage(error?.response?.data?.title);
-      setShowErrorModal(true);
-      if (error?.response?.status === 401) {
-        setShow(true);
-      }
-    }
-  };
-
-  const designaiton_data = async () => {
-        await api.get(`${process.env.REACT_APP_URL_PREFIX}Master/designations`, {
-        headers: {
-          Authorization: localStorage.getItem("token"),
-        },
-      })
-      .then((response) => {
-        setDesignation(response.data.data);
-      })
-      .catch((error) => {
-        if (error?.response?.status === 401) {
-          setShow(true);
-        }
-      });
-  };
-  const usertype_data = async () => {
-        await api.get(`${process.env.REACT_APP_URL_PREFIX}Master/usertypes`, {
-        headers: {
-          Authorization: localStorage.getItem("token"),
-        },
-      })
-      .then((response) => {
-        setUserType(response.data.data);
-      })
-      .catch(console.error());
-  };
-
-  const supervisor_data = async () => {
-        await api.get(`${process.env.REACT_APP_URL_PREFIX}User/supervisors`, {
-        headers: {
-          Authorization: localStorage.getItem("token"),
-        },
-      })
-      .then((response) => {
-        setSupervisor(response.data.data);
-      })
-      .catch((error) => {
-        if (error?.response?.status === 401) {
-          setShow(true);
-        }
-      });
-  };
-
-  const businessarea_data = async () => {
-        await api.get(`${process.env.REACT_APP_URL_PREFIX}Master/businessunit`, {
-        headers: {
-          Authorization: localStorage.getItem("token"),
-        },
-      })
-      .then((response) => {
-        setBusinessArea(response.data.data);
-      })
-      .catch((error) => {
-        if (error?.response?.status === 401) {
-          setShow(true);
-        }
-      });
-  };
-
-  const location_data = async () => {
-        await api.get(`${process.env.REACT_APP_URL_PREFIX}Master/location`, {
-        headers: {
-          Authorization: localStorage.getItem("token"),
-        },
-      })
-      .then((response) => {
-        setLocation(response.data.data);
-      })
-      .catch((error) => {
-        if (error?.response?.status === 401) {
-          setShow(true);
-        }
-      });
-  };
-
-  const formatDateLocal = (date) => {
-    if (!date) return "";
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  }
-
-  useEffect(() => {
-    setLoading(true);
-    designaiton_data();
-    supervisor_data();
-    businessarea_data();
-    usertype_data();
-    location_data();
-    setValue(props.employeeDetail);
-    setTimeout(() => {
-      setLoading(false);
-    }, 2000);
-  }, [props.employeeDetail]);
-
-
-
- useEffect(()=>{
-    console.log("listtttt",designation);
-        console.log("employee",props.employeeDetail?.designation_id);
-     if(!designation.length) return;
-     if(!props.employeeDetail)return;
-     if(!props.employeeDetail.designation_id) return;
-    
-     if(selectedDesignations.length) return;
-
-      const d = designation.filter(
-            (option) =>
-              Number(option.designation_id) === Number(props.employeeDetail.designation_id)
-          ).map((item) =>({
-                value: item.designation_id,
-                label: item.name,
-              }));
-         console.log("default ",d)
-              setSelectedDesignations(d);
-            },[designation,props.employeeDetail])
-
-
-  const setDefaultValueForDropdown = (key) => {
-    switch (key) {
-      case "supervisor":
-        {
-          //   console.log(supervisor);
-          //   console.log(props.employeeDetail);
-          const s = supervisor.filter(
-            (option) =>
-              parseInt(option.supervisor_id) ===
-              props.employeeDetail.supervisor_id
-          )[0];
-          return s
-            ? {
-                value: s.supervisor_id,
-                label: s.name,
-              }
-            : null;
-        }
-        break;
-      case "designation":
-        {
-          const d = designation.filter(
-            (option) =>
-              option.designation_id === props.employeeDetail.designation_id
-          );
-          return d.length
-            ?d.map((item) =>({
-                value: item.designation_id,
-                label: item.name,
-              }))
-            : [];
-        }
-        break;
